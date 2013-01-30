@@ -10,7 +10,7 @@ Monomer('GF',['b'])        #Growth Factor that activates synthesis of AP1
 Monomer('AP1', ['b', 'y'],{'y':('i','a')} )      #Transcription factor that promotes the synthesis of cyclin D.
 
 #Declare Parameters
-Parameter('kf', 1.0e07)	    #Calculated from the Michaelis constant, Kagf of 0.1microMoles provided in the paper (Km = (kr + kcat)/kf)
+Parameter('kf', 1.0e05)	    #Calculated from the Michaelis constant, Kagf of 0.1microMoles provided in the paper (Km = (kr + kcat)/kf)
 Parameter('kr', 1.0e-03)    #Assumed typical reverse rate constant
 Parameter('kc', 1.0)	    #Assumed typical catalytic rate constant 
 Parameter('kdap1', 0.15)    #Apparent first-order rate constant for AP1 transcription factor degradation in h^-1
