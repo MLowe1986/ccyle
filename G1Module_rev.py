@@ -29,33 +29,53 @@ Parameter(
 
 
 #AP1 Activation and Degradation Parameters 
-Parameter('kfap1', 1.663e-05)	    #Calculated from the Michaelis constant, Kagf of 0.1microMoles provided in the paper (Km = (kr + kcat)/kf)
-Parameter('krap1', 1.0e-03)       #Assumed typical reverse rate constant
-Parameter('kcap1', 1.0)           #Assumed typical catalytic rate constant 
-Parameter('kdap1', 4.17e-05)      #Apparent first-order rate constant for AP1 transcription factor degradation in s^-1
+Parameter('kfap1', )	   #AP1 activation forward rate 
+Parameter('krap1', )       #AP1 activation reverse rate 
+Parameter('kcap1', )       #AP1 activation catalytic rate
+Parameter('kdap1', )       #AP1 Degradation Rate
 
 #CyclinD Activation by AP1 Parameters
-Parameter('kfcd1', 1.0e07)	    #Assumed 
-Parameter('krcd1', 1.0e-03)    #Assumed typical reverse rate constant
-Parameter('kccd1', 0.4)	    #Rate constant for Cyclin D synthesis induced by AP1 in h^-1  
-Parameter('kddd1', 0.005)    #Apparent first-order rate constant for non-specific cyclin D protein degradation in s^-1
+Parameter('kfcdA', )	#Cyclin D activation by AP1 forward rate 
+Parameter('krcdA', )    #CyclinD activation by AP1 reverse rate 
+Parameter('kccdA', )    #CyclinD activation by AP1 catalytic rate 
 
 #Cyclin D Activation Parameters by E2F
-Parameter('kfcd2', 1.0e07)	    #Assumed 
-Parameter('krcd2', 1.0e-03)    #Assumed typical reverse rate constant
-Parameter('kccd2', 0.4)	    #Rate constant for Cyclin D synthesis induced by AP1 in h^-1  
-Parameter('kddd2', 0.005)    #Apparent first-order rate constant for non-specific cyclin D protein degradation in s^-1
+Parameter('kfcdE', )	   #Cyclin D activation by E2F forward rate 
+Parameter('krcdE', )       #CyclinD activation by E2F reverse rate 
+Parameter('kccdE', )       #CyclinD activation by E2F catalytic rate 
 
-#Cyclin D Inhibition Parameters
-Parameter('kfi7', 60.2)   #forward rate for CyclinD inhibition by pRB    
-Parameter('kri7', 1.0e-03)    #reverse rate for CyclinD inhibition by pRB
-Parameter('kfi8', 1204.4)	    #forward rate for CyclinD inhibition by pRBp
-Parameter('kri8', 1.0e-03)    #reverse rate for CyclinD inhibition by pRBp
+Parameter('kdddA', )    #CyclinD Degradation Rate
 
-#CyclinD/Cdk4_6 Parameters
-Parameter('kcom1', )         #forward rate for CyclinD/Cdk4_6 complex formation   
-Parameter('kdecom1', )    #reverse rate for CyclinD/Cdk4_6 complex formation   
+#forward and reverse rates for CyclinD inhibition by pRB 
+pRBCd_rates = [   ,   ]
+#forward and reverse rates for CyclinD inhibition by pRBp 
+pRBpCd_rates = [   ,   ]
 
+#forward and reverse rates for CyclinD/Cdk4_6 complex formation  
+Cdk4_6_rates = [   ,   ]
+ 
+#forward and reverse rates for CyclinD/Cdk4_6 complex equlibration
+Parameter('kfcdcdk', )
+Parameter('krcdcdk', ) 
+
+#forward and reverse rates for CyclinD/Cdk4_6/p27_p21 complex formation
+Parameter('kfp27',   )
+Parameter('krp27',   ) 
+
+#forward and reverse rates for phosphorylation of pRB
+Parameter('kfprb',   )
+Parameter('krprb',   )
+ 
+#forward and reverse rates for phosphorylation of pRBp
+Parameter('kfprbp',  )
+Parameter('krprbp',  ) 
+
+#forward and reverse rates for phosphorylation of E2F
+Parameter('kfEp',   )
+Parameter('krEp',   )
+
+
+ 
 # AP1 initial conditions
 Parameter('GF_0', 602200)      #the initial concentration of GF in number of molecules/pL - Converted from 1microM in paper to be the number of molecules in a cell (which is about 1 picoLiter)
 Initial(GF(b=None), GF_0)
@@ -80,26 +100,30 @@ Observable('obspRBpp', pRB(b=None, S='pp'))
 catalyze(GF(), 'b', AP1(S='i'), 'b', AP1(S='a'), (kfap1, krap1, kcap1))  # calls the function catalyze to simulate synthesis of AP1
 
 #AP1 activates Cyclin D.
-catalyze(AP1(S='a'), 'b', Cd(S='i'), 'b', Cd(S='a'), (kfcd1, krcd1, kccd1))  # calls the function catalyze to simulate synthesis of AP1 
+catalyze(AP1(S='a'), 'b', Cd(S='i'), 'b', Cd(S='a'), (kfcdA, krcdA, kccdA))  # calls the function catalyze to simulate synthesis of AP1 
   
 #E2F activates Cyclin D  
-catalyze(E2F(S='u'), 'b', Cd(S='i'), 'b', Cd(S='a'), (kfcd2, krcd2, kccd2))  # calls the function catalyze to simulate synthesis of AP1   
-  
+catalyze(E2F(S='u'), 'b', Cd(S='i'), 'b', Cd(S='a'), (kfcdE, krcdE, kccdE))  # calls the function catalyze to simulate synthesis of AP1   
 
+#Bind table: cdk4_6 binds to Cd to form a complex, which will then become activated in an equilibration step. pRB and pRBp bind to Cd to inhibit it. 
+bind_table_Cd([[ Cd(S = 'i'), Cd(S = 'a')]
+	     [pRB(S = 'u'), pRBCd_rates, None]              #pRB inhibits Cyclin D 
+	     [pRB(S = 'p'), pRBpCd_rates, None]             #pRBp inhibits Cyclin D 
+	     [Cdk4_6(S = 'i'), None, Cdk4_6_rates]])      #cdk4_6 and Cyclin D form a complex
+	     
+# The Cd/Cdk4_6	complex equilibrates from inactive to active 
 equilibrate(Cd(b=1)%Cdk4_6(b=None,S='i'),Cd(b=1)%Cdk4_6(b=None,S='a'),[kfcdcdk,krcdcdk])
 
-Rule('Cd_Cdk4_6_p27_p21_bind',p27_21(b=None) + Cd(b=1) % Cdk4_6(b=1, S='a') <> Cd(b=1) % Cdk4_6(b=1,b=2 S ='a') % p27_p21(b=2 , *[???????????])
+#The Cd/Cdk4_6 complex binds to p27_p21
+Rule ('Cd_Cdk4_6_p27_p21_bind',p27_21(b=None) + Cd(b=1) % Cdk4_6(b=1, S='a') <> Cd(b=1) % Cdk4_6(b=1,b=2, S ='a') % p27_p21(b=2) , *[kfp27, krp27])
 
-#CHANGE THE NAMES OF THE RATES ABOVE SO THAT THEY FIT WITH THIS BIND TABLE. THIS BIND TABLE SHOULD REPLACE THE FIRST THREE RULES LISTED ABOVE
-bind_table_Cd([[ Cd(S = 'i'), Cd(S = 'a')]
-	     [pRB(S = 'u'), pRB_rates, None]              #pRB inhibits Cyclin D 
-	     [pRB(S = 'p'), pRBp_rates, None]             #pRBp inhibits Cyclin D 
-	     [cdk4_6(S = 'i'), None, cdk4_6_rates]])
-
+#pRB is phosphorylated to become pRBp
 equilibrate(pRB(b=None,S='u'),pRB(b=None,S='p'),[kfprb,krprb]
 
+#pRBp is phosphorylated to become pRBpp
 equilibrate(pRB(b=None,S='p'),pRB(b=None,S='pp'),[kfprbp,krprbp]
 
+#E2F is phosphorylated to become E2Fp
 equilibrate(E2F(b=None,S='u'),E2F(b=None, S='p'),[kfEp, krEp]
 
 catalyze(Ce(b=1)%Cdk2(b=1,S='a'), 'b', pRB(S='p'), 'b', pRB(S='pp'), (kfCe, krCe, kcaCe))
