@@ -33,11 +33,11 @@ t = pl.linspace(0, 200000)     #defines a time period (0 to 2000 seconds)
 yout = odesolve(m.model, t)   #solves equations for the model over the specified time period
 
 #Graph 2
-pl.ion()
-pl.figure()
+#pl.ion()
+#pl.figure()
 
 #What to plot:
-pl.plot(t,yout['obsCDC25i'], label = "Inactive CDC25")
-pl.plot(t,yout['obsCDC25a'], label= "Active CDC25")
+#pl.plot(t,yout['obsCDC25i'], label = "Inactive CDC25")
+#pl.plot(t,yout['obsCDC25a'], label= "Active CDC25")
 
 pl.show()

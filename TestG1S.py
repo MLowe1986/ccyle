@@ -1,35 +1,71 @@
 
 from pysb import *
-from pysb.macros import catalyze, degrade, equilibrate, bind, bind_table, synthesize
+from pysb.macros import catalyze, degrade, equilibrate, bind, bind_table
     
 # instantiate a model
 Model()
 
 #Declare Monomers
+Monomer('Skp2', ['b','S'], {'S':['a', 'd']}) #Skp2 active form and degraded place holder
+Monomer('Cdh1', ['b', 'S'], {'S':['i', 'a']})#Cdh1 active form and incative form
 Monomer('pRB', ['b', 'S'],{'S':['u', 'p', 'pp']})  # Retinoblastoma protein unphosphorylated, phosphorylated once, and phosphorylated twice. 
-Monomer('Ce',['b', 'S'], {'S':['i', 'a']})
+Monomer('Ce',['b', 'd', 'S'], {'S':['i', 'a', 'd']})  #Cyclin E, inactive, active, and degraded (a place holder to indicate complete degradation of CyclinE)
 Monomer('Cdk2',['b', 'c', 'S'], {'S':['i', 'a']})
 Monomer('p27_p21',['b', 'S'], {'S':['u', 'p']})
 Monomer('Wee1',['b', 'S'], {'S':['a', 'i']})
 Monomer('CDC25', ['b', 'S'], {'S':['a', 'i']})
+Monomer('E2F', ['b', 'S'], {'S':['a', 'i']})
 
-#Declare Parameters
 
-#Parameter for Synthesis of Cyclin E 
-Parameter('kSCe', 7.5e-02)	    #This is k5 in Iwamoto paper
+#DECLARE PARAMETERS: 
 
-#Parameter for Degradation of Cyclin E
-Parameter('kDCe', 2.5e-03)          #This is k6 in Iwamoto paper
 
-#Cyclin E/Cdk2 binding parameters: 
+# STEP 1: Parameters for Activation of Cyclin E by E2F 
+Parameter('kSCe', 7.5e-02)     #This is k5 in Iwamoto paper
+
+
+#STEP 2: Parameters for Inhibition of Cyclin E activation by pRB and pRBp. Calculated from Ki9 and Ki10 in Gerard. 
+Parameter('kfpRB', 1.66e-06)
+Parameter('krpRB', 1.00e-01)
+Parameter('kfpRBp', 8.30e-08)
+Parameter('krpRBp', 1.00e-01)
+
+
+#STEP 3: Parameters for Degradation of Cyclin E
+  #Iwamoto
+Parameter('kDCe', 2.5e-03)    #This is k6 in Iwamoto paper
+  #Gerard
+Parameter('kfCe', 9.1e-08)    #(s^-1pL/mol) - Calculated from Km of 2microMol in Gerard and assuming krCe = 10^-1s^-1 and kcCe = 10^-2s^-1          
+Parameter('krCe', 1e-1)       #Estimated
+Parameter('kcCe', 1e-2)       #Estimated
+
+
+#STEP 4: Parameters for Degradation of Skp2 
+Parameter('kfcdh1', 4.57e-07)
+Parameter('krcdh1', 1.00e-01)
+Parameter('kccdh1', 1.00e-02) 
+
+
+
+# STEP 5: Cyclin E/Cdk2 binding parameters: 
 Parameter('kcdk2f',1.25e-03)
 Parameter('kcdk2r', 2.5e-04)  #forward and reverse rates respectively for formation of CyclinE/Cdk2 complex (k7 and k8 from Iwamoto- CHECK THIS BY COMPARING TO EQUATIONS IN PAPER!!)
 
+#STEP 6: Cdk2 irreversible flux parameter)
+Parameter('kCdk2', 5.0e-04) # k16 in Iwamoto
+
+
+#STEP 7: 
 
 #CyclinE/Cdk2 Complex Equilibrate Parameters:
 ###I AM NOT SURE WHAT THESE ARE IF THEY ARE CORRECT
 Parameter('kfcecdk', 2.5e-02)     #k22 from Iwamoto = NOT SURE
 Parameter('krcecdk', 1.75e-03)    #k23 from Iwamoto = NOT SURE
+
+#Parameters for self-catalysis of Ce/Cdk2(active) formation:
+Parameter('kfcecom',    )   #WHERE ARE THESE PARAMETERS IN IWAMOTO PAPER?????
+Parameter('krcecom',    )    
+Parameter('kccecom',     )
 
 
 Parameter('kfcp27_p21', 1.0e-02)     #k35 from Iwamoto
@@ -91,20 +127,71 @@ Initial(Ce(b=1, S='i') % Cdk2(b=1, c=2, S='i') % p27_p21(b=2, S='u'), Ce_Cdk2_p2
 Parameter('CDC25_0', 1.0e01)				#THIS PARAMETER IS NOT CORRECT- ESTIMATED FOR NOW- NOT IN IWAMOTO PAPER	
 Initial(CDC25(b=None, S='i'), CDC25_0)     
 
-#Declare Rules
+#DECLARE RULES: 
 
-#E2F promotes the synthesis of Cyclin E  
-#I can show synthesis, as shown below, but how do I show the promotion part????
 
-#Cyclin E Synthesis and Degradation
-synthesize(Ce(b=None, S = 'a'), kSCe)
-degrade(Ce(b=None, S='a'),kDCe)
 
-#Cyclin E binds to Cdk2 
+# STEP 1: E2F promotes the activation of Cyclin E  
+    # FIXME: (Select a model)
+    #Iwamoto Model: 
+Rule('E2F_Ce_trans', E2F() >> Ce, kSCe) #Iwamoto models activation of Cyclin E as a transformation from E2F to Cyclin E
+    #Gerard Model: 
+#catalyze(E2F(S='a'), 'b', Ce(S='i'), 'b', Ce(S='a'), (kfCe, krCe, kcCe))  #Cyclin E Activation is promoted by E2F, which can be modeled as a catalysis reaction. Parameters from Gerard also seem to show this as a transformation...(???)
+
+
+
+#STEP 2: pRB and pRBp inhibit Cyclin E activation by binding to inactive Cyclin E
+   #Iwamoto Model: Does not include this inhibition step
+   #Gerard Model:
+#Parameters that bind to Ce
+bind_table([[Ce(S= 'a')]
+	     [pRB(S = 'u'), (kfpRB, krpRB)]                         #pRB inhibits Cyclin E   
+	     [pRB(S = 'p'), (kfprBp, krpRBp)]], 'b', 'b')            #pRBp inhibits Cyclin E  
+
+
+# STEP 3: Skp2 promotes the degradation of Cyclin E: 
+     #FIXME: (Select a model)
+     #Iwamoto Model:
+#degrade(Ce(b=None, S='a'),kDCe)
+     #Gerard Model:
+catalyze(Skp2(S = 'a'), 'b', Ce(S='a'), 'b', Ce(S='d'), (kfce, krce, kcce))  # calls the function catalyze to simulate activation of Cyclin E
+
+
+#STEP 4: Cdh1 promotes the degradation of Skp2
+    #Iwamoto Model:Does not include this degradation step
+    #Gerard Model: 
+catalyze(Cdh1(S= 'a'), 'b', Skp2(S='a'), 'b', Skp2(S='d'), (kfcdh1, krcdh1, kccdh1)) 
+
+
+#STEP 5:Cyclin E binds to Cdk2 
+   #Iwamoto Model: Same as Gerard model
+   #Gerard Model:
 Rule('Ce_Cdk2_bind',Ce(b=None, S='a') + Cdk2(b=None, c=None, S='i') <> Ce(b=1, S='a') % Cdk2(b=1, c=None, S ='i'), *[kcdk2f, kcdk2r])
 
-#The Ce/Cdk2 complex equilibrates from inactive to active
-equilibrate(Ce(b=1, S='a') % Cdk2(b=1, c=None, S='i'),Ce(b=1, S='a') % Cdk2(b=1, c=None, S='a'),[kfcecdk,krcecdk])
+
+
+#STEP 6: Cdk2 leave the Ce/Cdk2 complex via irreversible flux
+  #FIXME: IS THIS THE CORRECT EQUATION FOR THIS STEP????
+  #Iwamoto Model: 
+  Rule('Ce_Cdk2_trans', Ce(b=1, S='a') % Cdk2(b=1, c=None, S ='i') >> Cdk2(b=None, c=None, S='i'), kCdk2) 
+  #Gerard Model: This step is not shown
+  
+  
+#STEP 7: Ce/Cdk2 becomes active (phosphorylated)
+  #FIXME: Select a model
+   #Iwamoto: #The active (phosphorylated) form of the Ce/Cdk2 complex self activates
+catalyze(Ce(b=1, d=None, S='a') % Cdk2(b=1, c=None, S='a'), 'd', Ce(b=1, d=None S='a') % Cdk2(b=1, c=None, S='i'), 'd', Ce(b=1, d=None, S='a') % Cdk2(b=1, c=None, S='a'), (kfcecom, krcecom, kccecom))
+   #Gerard: The Ce/Cdk2 complex equilibrates from inactive to active 
+equilibrate(Ce(b=1, S='a') % Cdk2(b=1, c=None, S='i'),Ce(b=1, S='a') % Cdk2(b=1, c=None, S='a'),[kfcecdk,krcecdk]) #currently these parameters are Iwamoto parameters...
+
+
+#STEP 8: CDC25 equilibrates from active to inactive. This reaction is catalyzed by the active Ce/Cdk2 complex. 
+  #Iwamoto: This step is not shown
+  # Gerard: 
+catalyze(Ce(b=1, d=None, S='a') % Cdk2(b=1, c=None, S='a'), 'd', CDC25(b=None, S='a'), 'b', CDC25(b=None, S='a'), (kfcdc, krcdc, kccdc))
+equilibrate(CDC25(b=None,S='i'),CDC25(b=None, S='a'),[kfCDC25, krCDC25])
+
+
 
 #The Ce/Cdk2 complex binds to p27_p21 - this complex is inactive
 Rule ('Ce_Cdk2_p27_p21_bind',p27_p21(b=None, S='u') + Ce(b=1, S='a') % Cdk2(b=1, c=None, S='a') <> Ce(b=1, S='i') % Cdk2(b=1, c=2, S ='i') % p27_p21(b=2, S='u') , *[kfcp27_p21, krcp27_p21])
@@ -112,14 +199,5 @@ Rule ('Ce_Cdk2_p27_p21_bind',p27_p21(b=None, S='u') + Ce(b=1, S='a') % Cdk2(b=1,
 #Phosphorylate p27_21
 equilibrate(p27_p21(b=None,S='u'),p27_p21(b=None, S='p'),[kfp27_p21, krp27_p21])
 
-#Equilibrate CDC25
-equilibrate(CDC25(b=None,S='i'),CDC25(b=None, S='a'),[kfCDC25, krCDC25])
 
-#Previously, I thought synthesis should be shown as an enzyme reaction because it is promoted by a certain factor:
-#catalyze(E2F(S='u'), 'b', Ce(S='i'), 'b', Ce(S='a'), (kfce, krce, kcce))  # calls the function catalyze to simulate activation of Cyclin E
 
-#Parameters that bind to Ce
-#bind_table([[ Ce(S= 'a')]
-#	     [pRB(S = 'u'), pRB_rates, None]              #pRB inhibits Cyclin E   -WHERE ARE THESE RATES?
-#	     [pRB(S = 'p'), pRBp_rates, None]             #pRBp inhibits Cyclin E  -WHERE ARE THESE RATES?
-#	     [cdk2(S = 'i'), None, cdk2_rates]])	  #cdk2 binds to Cylcin E to form a complex.  Can do this instead of rule above! 
